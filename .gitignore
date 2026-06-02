@@ -1,0 +1,82 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# uv
+.uv/
+# Keep uv.lock out until deps stabilize; commit it later for reproducibility.
+uv.lock
+
+# IDEs / editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Logs and runs
+logs/
+runs/
+wandb/
+mlruns/
+outputs/
+*.log
+
+# Data — NEVER commit. Lives on H200 or downloaded on demand.
+# Match only at repo root and at common dataset cache dirs.
+/data/
+/datasets/
+**/datasets/
+
+# Docs also don't commit for now
+/docs
+
+# Model weights and checkpoints — NEVER commit.
+checkpoints/
+weights/
+*.ckpt
+*.pt
+*.bin
+*.safetensors
+*.gguf
+*.onnx
+
+# Cache
+.cache/
+# Local HF dataset inspection cache (not for training runs)
+.hf_inspect/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+coverage.xml
+htmlcov/
+
+# Notebooks — track only .ipynb checkpoints dir, not outputs
+.ipynb_checkpoints/
+
+# Jupyter
+*.ipynb_checkpoints

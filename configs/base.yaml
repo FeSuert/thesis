@@ -1,0 +1,39 @@
+# Base configuration. Extended by phase-specific configs.
+# Paths come from environment variables defined in `.env`.
+
+seed: 42
+run_name: ""      # filled in by training scripts
+
+paths:
+  data_dir: ${oc.env:DATA_DIR,./data}
+  checkpoint_dir: ${oc.env:CHECKPOINT_DIR,./checkpoints}
+  output_dir: ${oc.env:OUTPUT_DIR,./outputs}
+
+tracking:
+  project: ${oc.env:WANDB_PROJECT,thesis-defender}
+  entity: ${oc.env:WANDB_ENTITY,""}
+  mode: ${oc.env:WANDB_MODE,online}
+
+attacker:
+  # D-008: local LLM on H200, specific model selected in Phase 1.
+  model_name: null
+  kind: null           # "llm" | "encoder"
+
+evaluator:
+  # Semantic similarity + task faithfulness; choice deferred.
+  similarity_model: null
+
+defender:
+  # D-007: 3B primary, 7B comparison. Specific model in Phase 1.
+  base_model: null
+  tier: null           # "3b" | "7b"
+
+reward:
+  # R(u, u') = lambda * S_sem(u, u') - (1 - lambda) * P_att(A_user | C_{t-1}, u')
+  lambda_: 0.5
+
+dpo:
+  beta: 0.1
+  k_candidates: 8
+  margin_delta: 0.05   # minimum reward margin for (u_w, u_l) pairs
+  min_utility_tau: 0.6 # floor below which candidates are rejected outright
