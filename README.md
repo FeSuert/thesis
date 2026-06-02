@@ -15,7 +15,7 @@ Code runs in two environments:
 | **Local** | Edit, lint, small tests, data annotation tooling, writeup | No (CPU / MPS) |
 | **Remote H200** | SFT, DPO, preference generation, full evaluation | Yes |
 
-**Code is shared via git.** Data, checkpoints, and logs are never committed. See `docs/local-dev.md` and `docs/remote-h200.md` for the full workflow.
+**Code is shared via git.** Data, checkpoints, and logs are never committed.
 
 ## Quick start
 
@@ -58,10 +58,6 @@ thesis-code/
 ├── configs/                 # YAML configs (Hydra-compatible)
 ├── scripts/                 # env setup, job submission templates
 ├── tests/                   # pytest
-├── docs/
-│   ├── local-dev.md
-│   ├── remote-h200.md
-│   └── reproducibility.md
 ├── extension/               # browser extension (Phase 5 — empty for now)
 ├── notebooks/               # exploratory notebooks (not committed by default)
 ├── pyproject.toml
