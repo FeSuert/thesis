@@ -6,6 +6,7 @@
 #   sbatch scripts/smoke_gpu.sh
 #
 #SBATCH --job-name=smoke-gpu
+#SBATCH --nodes=1
 #SBATCH --partition=gpu_filler          # A30 24GB, low FairShare cost, 1h limit
 #SBATCH --gpus=1
 #SBATCH --cpus-per-gpu=4
@@ -15,10 +16,8 @@
 #SBATCH --error=outputs/slurm/%x-%j.err
 
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(dirname "$SCRIPT_DIR")"
-mkdir -p "$REPO_ROOT/outputs/slurm"
-cd "$REPO_ROOT"
+cd "$SLURM_SUBMIT_DIR"
+mkdir -p outputs/slurm
 source "$HOME/.local/bin/env" 2>/dev/null || true
 
 echo "== host: $(hostname) | date: $(date -Is)"

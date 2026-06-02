@@ -8,6 +8,7 @@
 #   sbatch scripts/submit_example.sh thesis.training.sft --config configs/sft/base.yaml
 
 #SBATCH --job-name=thesis
+#SBATCH --nodes=1
 #SBATCH --output=outputs/slurm/%x-%j.out
 #SBATCH --error=outputs/slurm/%x-%j.err
 #SBATCH --time=24:00:00
@@ -18,12 +19,8 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(dirname "$SCRIPT_DIR")"
-
-mkdir -p "$REPO_ROOT/outputs/slurm"
-
-cd "$REPO_ROOT"
+cd "$SLURM_SUBMIT_DIR"
+mkdir -p outputs/slurm
 
 # Ensure uv is on PATH inside the job.
 # shellcheck disable=SC1091
