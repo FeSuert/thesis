@@ -11,9 +11,10 @@
 #SBATCH --output=outputs/slurm/%x-%j.out
 #SBATCH --error=outputs/slurm/%x-%j.err
 #SBATCH --time=24:00:00
-#SBATCH --gres=gpu:h200:1
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=128G
+#SBATCH --partition=fat_gpu_h200
+#SBATCH --account=REPLACE_ME
+#SBATCH --gpus=1
+#SBATCH --cpus-per-gpu=8
 
 set -euo pipefail
 
