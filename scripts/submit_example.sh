@@ -12,7 +12,7 @@
 #SBATCH --error=outputs/slurm/%x-%j.err
 #SBATCH --time=24:00:00
 #SBATCH --partition=fat_gpu_h200
-#SBATCH --account=REPLACE_ME
+#SBATCH --account=haberi2x_0000
 #SBATCH --gpus=1
 #SBATCH --cpus-per-gpu=8
 

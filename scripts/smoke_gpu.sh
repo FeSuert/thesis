@@ -10,7 +10,7 @@
 #SBATCH --gpus=1
 #SBATCH --cpus-per-gpu=4
 #SBATCH --time=00:15:00
-#SBATCH --account=REPLACE_ME            # <-- from `rub-acclist`
+#SBATCH --account=haberi2x_0000            # <-- from `rub-acclist`
 #SBATCH --output=outputs/slurm/%x-%j.out
 #SBATCH --error=outputs/slurm/%x-%j.err
 
