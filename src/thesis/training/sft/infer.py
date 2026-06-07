@@ -59,7 +59,7 @@ def main() -> None:
     tokenizer = AutoTokenizer.from_pretrained(tok_src)
 
     # Load the frozen base model, then attach the trained LoRA adapter on top.
-    model = AutoModelForCausalLM.from_pretrained(base_model, torch_dtype=torch.bfloat16, device_map="auto")
+    model = AutoModelForCausalLM.from_pretrained(base_model, dtype=torch.bfloat16, device_map="auto")
     model = PeftModel.from_pretrained(model, str(adapter_dir))
     model.eval()
 
@@ -78,21 +78,23 @@ def main() -> None:
         meta = row.get("meta", {})
 
         # Build the inference prompt: system + user, then ask the model to generate.
-        prompt_ids = tokenizer.apply_chat_template(
+        enc = tokenizer.apply_chat_template(
             [system, user],
             add_generation_prompt=True,   # append the "assistant" turn cue
             return_tensors="pt",
+            return_dict=True,             # -> BatchEncoding with input_ids + attention_mask
         ).to(model.device)
+        input_len = enc["input_ids"].shape[1]
 
         with torch.no_grad():
             out = model.generate(
-                prompt_ids,
+                **enc,
                 max_new_tokens=args.max_new_tokens,
                 do_sample=False,          # greedy → deterministic, reproducible
                 pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
             )
         # Decode only the newly generated tokens (strip the prompt).
-        gen = tokenizer.decode(out[0][prompt_ids.shape[1]:], skip_special_tokens=True).strip()
+        gen = tokenizer.decode(out[0][input_len:], skip_special_tokens=True).strip()
 
         print(f"\n=== {i}/{len(rows)}  [has_leak={meta.get('has_leak')}  "
               f"strategy={meta.get('strategy')}  leaked={meta.get('leaked_attributes')}] ===")
