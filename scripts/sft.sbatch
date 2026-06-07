@@ -16,6 +16,9 @@ module load elysium/2026
 
 # Compute nodes have no internet: load the pre-downloaded model from the cache only.
 export HF_HUB_OFFLINE=1
+# W&B can't reach the internet from compute nodes: log locally, sync later from login node
+# with `wandb sync wandb/offline-run-*`. (Use WANDB_MODE=disabled to skip logging entirely.)
+export WANDB_MODE=offline
 # Reduce CUDA memory fragmentation (helps with the large 248K-vocab logits).
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
