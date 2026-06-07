@@ -5,9 +5,11 @@
 run_name: sft-qwen35-4b
 
 defender:
-  # Confirm the exact HF repo id once on the cluster. Fallback if the hybrid
-  # Gated-DeltaNet arch has TRL/PEFT quirks (D-014): Qwen/Qwen3-4B-Instruct-2507
-  base_model: Qwen/Qwen3.5-4B-Instruct
+  # Qwen3.5 drops the "-Instruct" suffix: post-trained/instruct model = "Qwen/Qwen3.5-4B"
+  # ("-Base" is the pretrained variant — do NOT use). Qwen3.5 uses a hybrid Gated-DeltaNet
+  # architecture, so the smoke test must confirm LoRA/PEFT attaches (D-014). Documented
+  # fallback if it doesn't: Qwen/Qwen3-4B-Instruct-2507 (standard transformer).
+  base_model: Qwen/Qwen3.5-4B
   tier: "4b"
 
 sft:
