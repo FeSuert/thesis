@@ -12,8 +12,10 @@ defender:
 
 sft:
   # --- data ---
-  train_file: ${paths.data_dir}/sft/train.jsonl
-  val_file: ${paths.data_dir}/sft/val.jsonl
+  # In data-public/ (committed to git, not gitignored) so it travels with the repo.
+  # Paths are resolved relative to the repo root by train.py.
+  train_file: data-public/sft/train.jsonl
+  val_file: data-public/sft/val.jsonl
   # Provenance string logged with the run for reproducibility (docs/reproducibility.md).
   dataset_version: "sft-synth-gemini35flash-v1-clean1528"
   max_seq_len: 2048           # > longest (system+user+assistant); see smoke-test note

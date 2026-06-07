@@ -67,9 +67,18 @@ def main() -> None:
 
     # 4) Data. Each row already has {"messages": [system, user, assistant], "meta": {...}}.
     #    TRL reads the "messages" column and applies the chat template automatically.
+    #    Data files live in data-public/ (committed); resolve them relative to the
+    #    repo root so the run works regardless of the current working directory.
+    def _resolve(p: str) -> str:
+        path = Path(p)
+        return str(path if path.is_absolute() else repo_root() / path)
+
     data = load_dataset(
         "json",
-        data_files={"train": str(s.train_file), "validation": str(s.val_file)},
+        data_files={
+            "train": _resolve(s.train_file),
+            "validation": _resolve(s.val_file),
+        },
     )
 
     # 5) LoRA: train small low-rank adapters instead of all 4B weights.
