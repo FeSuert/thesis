@@ -20,7 +20,7 @@ sft:
   val_file: data-public/sft/val.jsonl
   # Provenance string logged with the run for reproducibility (docs/reproducibility.md).
   dataset_version: "sft-synth-gemini35flash-v1-clean1528"
-  max_seq_len: 2048           # > longest (system+user+assistant); see smoke-test note
+  max_seq_len: 1024           # data is short (~350 tok); 248K-vocab logits are memory-heavy
   packing: false              # keep one example per sequence so masking is exact
   assistant_only_loss: true   # train ONLY on the rewrite tokens, not system/user
 
