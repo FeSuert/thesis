@@ -5,11 +5,12 @@
 run_name: sft-qwen35-4b
 
 defender:
-  # Qwen3.5 drops the "-Instruct" suffix: post-trained/instruct model = "Qwen/Qwen3.5-4B"
-  # ("-Base" is the pretrained variant — do NOT use). Qwen3.5 uses a hybrid Gated-DeltaNet
-  # architecture, so the smoke test must confirm LoRA/PEFT attaches (D-014). Documented
-  # fallback if it doesn't: Qwen/Qwen3-4B-Instruct-2507 (standard transformer).
-  base_model: Qwen/Qwen3.5-4B
+  # Switched from Qwen3.5-4B after empirical issues (2026-06-07): Qwen3.5-4B is a
+  # multimodal *reasoning* model — it nests the text decoder under `language_model`
+  # (breaks LoRA adapter reload) and emits chain-of-thought instead of a direct rewrite.
+  # Qwen3-4B-Instruct-2507 is text-only, non-thinking, standard transformer, Apache-2.0 —
+  # the right fit for a small, fast, on-device Defender (D-014 fallback, now justified).
+  base_model: Qwen/Qwen3-4B-Instruct-2507
   tier: "4b"
 
 sft:
