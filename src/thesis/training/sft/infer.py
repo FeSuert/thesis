@@ -58,9 +58,13 @@ def main() -> None:
     tok_src = adapter_dir if (adapter_dir / "tokenizer_config.json").exists() else base_model
     tokenizer = AutoTokenizer.from_pretrained(tok_src)
 
-    # Load the frozen base model, then attach the trained LoRA adapter on top.
-    model = AutoModelForCausalLM.from_pretrained(base_model, dtype=torch.bfloat16, device_map="auto")
+    # Load the frozen base model the SAME way training did (no device_map — that can
+    # load a different/flatter variant of multimodal models and break adapter key paths),
+    # then attach the trained LoRA adapter and move to GPU.
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = AutoModelForCausalLM.from_pretrained(base_model, dtype=torch.bfloat16)
     model = PeftModel.from_pretrained(model, str(adapter_dir))
+    model.to(device)
     model.eval()
 
     # Sample N rows from the held-out validation set.
@@ -83,7 +87,7 @@ def main() -> None:
             add_generation_prompt=True,   # append the "assistant" turn cue
             return_tensors="pt",
             return_dict=True,             # -> BatchEncoding with input_ids + attention_mask
-        ).to(model.device)
+        ).to(device)
         input_len = enc["input_ids"].shape[1]
 
         with torch.no_grad():
