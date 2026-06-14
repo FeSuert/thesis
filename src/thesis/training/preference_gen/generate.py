@@ -73,6 +73,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--lambda", dest="lam", type=float, default=0.5)
     p.add_argument("--tau", type=float, default=0.6, help="Utility floor on S_sem.")
     p.add_argument("--delta", type=float, default=0.05, help="Min reward margin to keep a pair.")
+    p.add_argument("--min-pgap", type=float, default=0.05,
+                   help="Min privacy gap: keep a pair only if the rejected candidate leaks at "
+                        "least this much MORE than the chosen (P_att(rej) - P_att(cho)). Drops "
+                        "attacker-noise and non-privacy pairs so DPO trains on informative ones.")
     p.add_argument("--age-tol", type=int, default=5)
     p.add_argument("--max-context-tokens", type=int, default=4096)
     p.add_argument("--out", default="outputs/dpo-pref/pilot")
@@ -101,7 +105,7 @@ def main() -> None:
 
     pairs: list[dict] = []
     stats = {"turns_seen": 0, "turns_paired": 0, "skip_low_diversity": 0,
-             "skip_utility_floor": 0, "skip_margin": 0, "skip_no_known_attrs": 0}
+             "skip_utility_floor": 0, "skip_margin": 0, "skip_pgap": 0, "skip_no_known_attrs": 0}
 
     pairs_f = (out_dir / "pref_pairs.jsonl").open("w", encoding="utf-8")
 
@@ -150,8 +154,12 @@ def main() -> None:
             rejected, chosen = scored[0], scored[-1]
             history.append(chosen["text"])     # extend sanitized history with the best rewrite
             margin = chosen["reward"] - rejected["reward"]
+            pgap = rejected["p_att"] - chosen["p_att"]   # how much MORE the rejected leaks
             if margin <= args.delta:
                 stats["skip_margin"] += 1
+                continue
+            if pgap < args.min_pgap:           # require a real privacy difference (anti-noise)
+                stats["skip_pgap"] += 1
                 continue
 
             pair = {
@@ -165,6 +173,7 @@ def main() -> None:
                     "reward_chosen": round(chosen["reward"], 4),
                     "reward_rejected": round(rejected["reward"], 4),
                     "margin": round(margin, 4),
+                    "pgap": round(pgap, 4),
                     "s_sem_chosen": round(chosen["s_sem"], 4),
                     "p_att_chosen": round(chosen["p_att"], 4),
                     "s_sem_rejected": round(rejected["s_sem"], 4),
@@ -194,6 +203,7 @@ def main() -> None:
         "mean_p_att_chosen": _mean([p["meta"]["p_att_chosen"] for p in pairs]),
         "mean_p_att_rejected": _mean([p["meta"]["p_att_rejected"] for p in pairs]),
         "mean_margin": _mean([p["meta"]["margin"] for p in pairs]),
+        "mean_pgap": _mean([p["meta"]["pgap"] for p in pairs]),
         "config": {"k": args.k, "lambda": args.lam, "tau": args.tau, "delta": args.delta,
                    "temperature": args.temperature, "defender": str(defender_dir),
                    "attacker": args.attacker},
