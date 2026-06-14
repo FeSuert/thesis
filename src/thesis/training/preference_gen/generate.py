@@ -26,6 +26,7 @@ Run (fat_gpu — needs the 4B Defender + 9B Attacker + mpnet resident together):
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 from pathlib import Path
 
@@ -77,6 +78,10 @@ def parse_args() -> argparse.Namespace:
                    help="Min privacy gap: keep a pair only if the rejected candidate leaks at "
                         "least this much MORE than the chosen (P_att(rej) - P_att(cho)). Drops "
                         "attacker-noise and non-privacy pairs so DPO trains on informative ones.")
+    p.add_argument("--min-text-diff", type=float, default=0.06,
+                   help="Require chosen/rejected to be genuinely different text: skip the pair if "
+                        "their similarity ratio >= 1 - this. Kills attacker-jitter pairs where the "
+                        "two candidates are (near-)identical strings.")
     p.add_argument("--age-tol", type=int, default=5)
     p.add_argument("--max-context-tokens", type=int, default=4096)
     p.add_argument("--out", default="outputs/dpo-pref/pilot")
@@ -105,7 +110,8 @@ def main() -> None:
 
     pairs: list[dict] = []
     stats = {"turns_seen": 0, "turns_paired": 0, "skip_low_diversity": 0,
-             "skip_utility_floor": 0, "skip_margin": 0, "skip_pgap": 0, "skip_no_known_attrs": 0}
+             "skip_utility_floor": 0, "skip_margin": 0, "skip_pgap": 0, "skip_near_dup": 0,
+             "skip_no_known_attrs": 0}
 
     pairs_f = (out_dir / "pref_pairs.jsonl").open("w", encoding="utf-8")
 
@@ -160,6 +166,10 @@ def main() -> None:
                 continue
             if pgap < args.min_pgap:           # require a real privacy difference (anti-noise)
                 stats["skip_pgap"] += 1
+                continue
+            if difflib.SequenceMatcher(None, chosen["text"], rejected["text"]).ratio() \
+                    >= 1.0 - args.min_text_diff:   # near-identical candidates → attacker jitter
+                stats["skip_near_dup"] += 1
                 continue
 
             pair = {
