@@ -14,12 +14,19 @@
 cd "$SLURM_SUBMIT_DIR"
 module load elysium/2026
 
+# Point the HF cache at the Lustre location where models are pre-downloaded (login node).
+# Respect an already-exported HF_HOME, else default to the known cache root.
+export HF_HOME="${HF_HOME:-/lustre/urdeniw5/hf_cache}"
 # Compute nodes have no internet: load the pre-downloaded model from the cache only.
 export HF_HUB_OFFLINE=1
 # W&B can't reach the internet from compute nodes: log locally, sync later from login node
 # with `wandb sync wandb/offline-run-*`. (Use WANDB_MODE=disabled to skip logging entirely.)
 export WANDB_MODE=offline
-# Reduce CUDA memory fragmentation (helps with the large 248K-vocab logits).
+# Reduce CUDA memory fragmentation (helps with the large vocab logits).
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-uv run python -m thesis.training.sft.train --config configs/sft/qwen35-4b.yaml
+# Config is the first arg; defaults to the validated Qwen3-4B-Instruct-2507 run.
+#   sbatch scripts/sft.sbatch configs/sft/qwen3_5-4b.yaml   # Qwen3.5-4B (merged, Fix A)
+CONFIG="${1:-configs/sft/qwen35-4b.yaml}"
+echo "[sft.sbatch] using config: $CONFIG"
+uv run python -m thesis.training.sft.train --config "$CONFIG"

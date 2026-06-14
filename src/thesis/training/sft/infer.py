@@ -30,6 +30,10 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="SFT Defender generation sanity check.")
     p.add_argument("--adapter", default="outputs/sft-qwen35-4b/final",
                    help="Path to the trained LoRA adapter dir (contains adapter_config.json).")
+    p.add_argument("--merged", default=None,
+                   help="Path to a merged standalone model dir (Fix A). If set, it is loaded "
+                        "directly with AutoModelForCausalLM and --adapter/--base_model are ignored. "
+                        "This is the recommended path for Qwen3.5 (avoids the adapter-prefix bug).")
     p.add_argument("--base_model", default=None,
                    help="Override base model id; defaults to the SFT config's defender.base_model.")
     p.add_argument("--val_file", default="data-public/sft/val.jsonl")
@@ -44,28 +48,38 @@ def main() -> None:
     set_seed(args.seed)
     root = repo_root()
 
-    # Resolve the base model id from the SFT config unless overridden.
-    base_model = args.base_model
-    if base_model is None:
-        cfg = load_config(root / "configs" / "sft" / "qwen35-4b.yaml")
-        base_model = cfg.defender.base_model
-
-    adapter_dir = Path(args.adapter)
-    if not adapter_dir.is_absolute():
-        adapter_dir = root / adapter_dir
-
-    # Tokenizer: prefer the one saved with the adapter (identical, but self-contained).
-    tok_src = adapter_dir if (adapter_dir / "tokenizer_config.json").exists() else base_model
-    tokenizer = AutoTokenizer.from_pretrained(tok_src)
-
-    # Load the frozen base model the SAME way training did (no device_map — that can
-    # load a different/flatter variant of multimodal models and break adapter key paths),
-    # then attach the trained LoRA adapter and move to GPU.
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = AutoModelForCausalLM.from_pretrained(base_model, dtype=torch.bfloat16)
-    model = PeftModel.from_pretrained(model, str(adapter_dir))
-    model.to(device)
-    model.eval()
+
+    if args.merged is not None:
+        # Fix A path: a standalone merged model. No adapter, no PeftModel, so the
+        # adapter-prefix mismatch (vLLM #34186 / D-023) cannot occur.
+        merged_dir = Path(args.merged)
+        if not merged_dir.is_absolute():
+            merged_dir = root / merged_dir
+        tokenizer = AutoTokenizer.from_pretrained(merged_dir)
+        model = AutoModelForCausalLM.from_pretrained(merged_dir, dtype=torch.bfloat16)
+        model.to(device)
+        model.eval()
+    else:
+        # Legacy path: frozen base + LoRA adapter (used by the 2507 run).
+        base_model = args.base_model
+        if base_model is None:
+            cfg = load_config(root / "configs" / "sft" / "qwen35-4b.yaml")
+            base_model = cfg.defender.base_model
+
+        adapter_dir = Path(args.adapter)
+        if not adapter_dir.is_absolute():
+            adapter_dir = root / adapter_dir
+
+        # Tokenizer: prefer the one saved with the adapter (identical, but self-contained).
+        tok_src = adapter_dir if (adapter_dir / "tokenizer_config.json").exists() else base_model
+        tokenizer = AutoTokenizer.from_pretrained(tok_src)
+
+        # Load the frozen base the SAME way training did (no device_map), attach adapter.
+        model = AutoModelForCausalLM.from_pretrained(base_model, dtype=torch.bfloat16)
+        model = PeftModel.from_pretrained(model, str(adapter_dir))
+        model.to(device)
+        model.eval()
 
     # Sample N rows from the held-out validation set.
     val_path = Path(args.val_file)
@@ -82,12 +96,13 @@ def main() -> None:
         meta = row.get("meta", {})
 
         # Build the inference prompt: system + user, then ask the model to generate.
-        enc = tokenizer.apply_chat_template(
-            [system, user],
-            add_generation_prompt=True,   # append the "assistant" turn cue
-            return_tensors="pt",
-            return_dict=True,             # -> BatchEncoding with input_ids + attention_mask
-        ).to(device)
+        # enable_thinking=False keeps Qwen3.5 in non-thinking mode (direct rewrite, no
+        # chain-of-thought); harmlessly ignored by templates that don't support it.
+        tmpl_kwargs = dict(add_generation_prompt=True, return_tensors="pt", return_dict=True)
+        try:
+            enc = tokenizer.apply_chat_template([system, user], enable_thinking=False, **tmpl_kwargs).to(device)
+        except (TypeError, ValueError):
+            enc = tokenizer.apply_chat_template([system, user], **tmpl_kwargs).to(device)
         input_len = enc["input_ids"].shape[1]
 
         with torch.no_grad():

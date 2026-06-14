@@ -1,0 +1,63 @@
+# SFT warm-up for the Defender — Qwen3.5-4B (the original D-014 primary choice).
+# Merged on top of configs/base.yaml by the training script.
+#
+# This config revisits Qwen3.5-4B after D-023 rejected it. The D-023 blocker was NOT
+# "Qwen3.5 can't be fine-tuned" — it was a known adapter-key prefix mismatch (vLLM
+# issue #34186): the LoRA adapter trained against the nested `language_model` structure
+# was silently not applied when reloaded as a flat AutoModelForCausalLM. Fix A:
+# merge_and_unload() the adapter into the base right after training and save a single
+# standalone model (merge_after_train: true below) — a merged model has NO adapter, so
+# the prefix-matching bug cannot occur at inference.
+#
+# Separate run_name + config file so the validated Qwen3-4B-Instruct-2507 run
+# (configs/sft/qwen35-4b.yaml, outputs/sft-qwen35-4b/) stays intact as a fallback.
+
+run_name: sft-qwen3_5-4b
+
+defender:
+  base_model: Qwen/Qwen3.5-4B   # instruct variant (Qwen3.5 dropped the -Instruct suffix; -Base is pretrained)
+  tier: "4b"
+
+sft:
+  # --- data (same corpus as the 2507 run) ---
+  train_file: data-public/sft/train.jsonl
+  val_file: data-public/sft/val.jsonl
+  dataset_version: "sft-synth-gemini35flash-v1-clean1528"
+  max_seq_len: 1024           # data is short (~350 tok); keeps the big-vocab logits memory in check
+  packing: false              # one example per sequence so masking is exact
+  assistant_only_loss: true   # train ONLY on the rewrite tokens, not system/user
+
+  # --- LoRA ---
+  use_lora: true
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  lora_target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+
+  # Fix A (D-023 / vLLM #34186): after training, merge the LoRA into the base and save
+  # a standalone full model under <out_dir>/merged. Inference loads that directly (no
+  # PeftModel), so there is no adapter-prefix matching and the silent-no-op bug is gone.
+  merge_after_train: true
+
+  # --- optimization ---
+  # epochs=2: the 2507 run showed eval_loss bottoms ~epoch 1.2-1.7 then overfits.
+  # load_best_model_at_end still protects us, but 2 epochs is the canonical setting.
+  epochs: 2
+  lr: 2.0e-4
+  lr_scheduler: cosine
+  warmup_ratio: 0.03
+  weight_decay: 0.0
+  per_device_batch_size: 8
+  grad_accum: 2
+  bf16: true
+  gradient_checkpointing: true
+  max_grad_norm: 1.0
+
+  # --- eval / logging / checkpoints ---
+  eval_strategy: steps
+  eval_steps: 50
+  logging_steps: 10
+  save_steps: 50
+  save_total_limit: 2
+  load_best_model_at_end: true
+  metric_for_best_model: eval_loss

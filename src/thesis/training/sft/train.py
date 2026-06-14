@@ -170,6 +170,22 @@ def main() -> None:
     # 9) Persist the final (best, if load_best_model_at_end) adapter + tokenizer.
     trainer.save_model(str(out_dir / "final"))
     tokenizer.save_pretrained(str(out_dir / "final"))
+
+    # 10) Fix A (D-023 / vLLM #34186): merge the LoRA into the base and save a single
+    #     standalone model. A merged model carries NO adapter, so the silent
+    #     adapter-key prefix mismatch that broke Qwen3.5 reload cannot happen at
+    #     inference — infer.py loads this dir directly (no PeftModel). Controlled by
+    #     sft.merge_after_train (default off, so the 2507 config is unaffected).
+    if s.use_lora and bool(s.get("merge_after_train", False)):
+        merged_dir = out_dir / "merged"
+        print(f"[sft] merging LoRA adapter into base -> {merged_dir}")
+        # trainer.model is the PeftModel; with load_best_model_at_end it holds the
+        # best checkpoint's adapter. merge_and_unload bakes it into the base weights.
+        merged = trainer.model.merge_and_unload()
+        merged.save_pretrained(str(merged_dir), safe_serialization=True)
+        tokenizer.save_pretrained(str(merged_dir))
+        print(f"[sft] merged full model saved in {merged_dir}")
+
     print(f"[sft] done. artifacts in {out_dir}")
 
 
