@@ -120,15 +120,23 @@ class LLMAttacker:
         return "User messages from the conversation:\n" + joined
 
     def _build_inputs(self, user_turns: list[str]):
-        messages = [
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": self._user_block(user_turns)},
-        ]
+        block = self._user_block(user_turns)
         kwargs = dict(add_generation_prompt=True, return_tensors="pt", return_dict=True)
+
+        def _apply(messages):
+            try:
+                return self.tokenizer.apply_chat_template(messages, enable_thinking=False, **kwargs)
+            except TypeError:                 # template doesn't accept enable_thinking
+                return self.tokenizer.apply_chat_template(messages, **kwargs)
+
+        # Preferred: separate system + user turns. Some models (e.g. Gemma) have no `system`
+        # role and their chat template raises → fold the system prompt into the user turn.
+        sys_user = [{"role": "system", "content": _SYSTEM_PROMPT}, {"role": "user", "content": block}]
         try:
-            enc = self.tokenizer.apply_chat_template(messages, enable_thinking=False, **kwargs)
-        except (TypeError, ValueError):
-            enc = self.tokenizer.apply_chat_template(messages, **kwargs)
+            enc = _apply(sys_user)
+        except Exception:
+            merged = [{"role": "user", "content": _SYSTEM_PROMPT + "\n\n" + block}]
+            enc = _apply(merged)
         return enc.to(self.device)
 
     # -- inference -------------------------------------------------------------
