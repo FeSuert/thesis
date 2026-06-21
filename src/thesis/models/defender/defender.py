@@ -65,3 +65,16 @@ class Defender:
             pad_token_id=self.tokenizer.pad_token_id or self.tokenizer.eos_token_id,
         )
         return [self.tokenizer.decode(o[input_len:], skip_special_tokens=True).strip() for o in out]
+
+    @torch.no_grad()
+    def rewrite(self, user_text: str) -> str:
+        """Deterministic (greedy) single rewrite — used at evaluation time."""
+        enc = self._inputs(user_text)
+        input_len = enc["input_ids"].shape[1]
+        out = self.model.generate(
+            **enc,
+            max_new_tokens=self.max_new_tokens,
+            do_sample=False,
+            pad_token_id=self.tokenizer.pad_token_id or self.tokenizer.eos_token_id,
+        )
+        return self.tokenizer.decode(out[0][input_len:], skip_special_tokens=True).strip()
