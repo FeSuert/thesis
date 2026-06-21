@@ -98,7 +98,6 @@ def main() -> None:
         seed=cfg.seed,
         beta=float(d.beta),
         max_length=d.max_length,
-        max_prompt_length=d.max_prompt_length,
         num_train_epochs=d.epochs,
         learning_rate=float(d.lr),
         lr_scheduler_type=d.lr_scheduler,
