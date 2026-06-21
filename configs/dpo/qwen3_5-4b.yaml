@@ -1,0 +1,50 @@
+# DPO training for the Defender (Phase 3; D-021 variants 3 & 4). Merged on top of base.yaml.
+#
+# Two variants share this file:
+#   SFT+DPO  (deployed): defender.base_model = the merged SFT model (default below).
+#   DPO-only (ablation): override defender.base_model=Qwen/Qwen3.5-4B run_name=dpo-only-qwen3_5-4b
+#
+# Trains a LoRA adapter with TRL DPOTrainer on the preference pairs, then merges it into a
+# standalone model (Fix A / D-024) so there is no adapter-prefix issue at inference.
+
+run_name: dpo-sftdpo-qwen3_5-4b
+
+defender:
+  base_model: outputs/sft-qwen3_5-4b/merged   # SFT+DPO: warm-start from the SFT model
+  tier: "4b"
+
+dpo:
+  pref_file: outputs/dpo-pref/full/pref_pairs.jsonl
+  val_fraction: 0.05
+  beta: 0.1                    # KL strength (base.yaml default); higher = stay closer to ref
+  max_length: 1024
+  max_prompt_length: 768
+
+  # --- LoRA ---
+  use_lora: true
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  lora_target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+  merge_after_train: true      # Fix A (D-024): emit a standalone merged model
+
+  # --- optimization (DPO uses a much lower LR than SFT) ---
+  epochs: 1
+  lr: 5.0e-6
+  lr_scheduler: cosine
+  warmup_ratio: 0.1
+  weight_decay: 0.0
+  per_device_batch_size: 2
+  grad_accum: 4                # effective batch = 2 * 4 * num_gpus
+  bf16: true
+  gradient_checkpointing: true
+  max_grad_norm: 1.0
+
+  # --- eval / logging / checkpoints ---
+  eval_strategy: steps
+  eval_steps: 50
+  logging_steps: 10
+  save_steps: 50
+  save_total_limit: 2
+  load_best_model_at_end: true
+  metric_for_best_model: eval_loss
