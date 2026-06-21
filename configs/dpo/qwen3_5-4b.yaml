@@ -16,7 +16,7 @@ defender:
 dpo:
   pref_file: outputs/dpo-pref/full/pref_pairs.jsonl
   val_fraction: 0.05
-  beta: 0.1                    # KL strength (base.yaml default); higher = stay closer to ref
+  beta: 0.05                   # canonical (v2); lower than the 0.1 default → moves further from the SFT ref
   max_length: 1024
   max_prompt_length: 768
 
@@ -29,8 +29,11 @@ dpo:
   merge_after_train: true      # Fix A (D-024): emit a standalone merged model
 
   # --- optimization (DPO uses a much lower LR than SFT) ---
-  epochs: 1
-  lr: 5.0e-6
+  # Canonical recipe = "v2": 3 epochs / beta 0.05 / lr 8e-6 chosen after a Phase-4 pass-1 sweep
+  # (sftdpo_v2 beat v1 and SFT on ASR at ~equal utility). Canonical artifact (already trained):
+  # outputs/dpo-sftdpo-qwen3_5-4b-v2/merged.
+  epochs: 3
+  lr: 8.0e-6
   lr_scheduler: cosine
   warmup_ratio: 0.1
   weight_decay: 0.0
@@ -39,6 +42,8 @@ dpo:
   bf16: true
   gradient_checkpointing: true
   max_grad_norm: 1.0
+
+  beta_note: "beta=0.05 (set above); lower than the 0.1 default to let the policy move further from the SFT reference."
 
   # --- eval / logging / checkpoints ---
   eval_strategy: steps
