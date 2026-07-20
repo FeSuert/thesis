@@ -32,6 +32,9 @@ dependencies = [
 
     # Experiment tracking
     "wandb>=0.18",
+
+    # API clients (judge, API attacker)
+    "openai>=1.40",
 ]
 
 [project.optional-dependencies]

@@ -143,9 +143,11 @@ def main() -> None:
                 all_ssem.append(ssem)
                 all_changed.append(changed)
 
+                # Full text, not truncated: downstream scripts (RQ3 responses, API
+                # attacker) consume these rewrites directly.
                 turn_log.write(json.dumps({
                     "persona_id": per["pid"], "turn_idx": ti,
-                    "original": orig[:500], "rewrite": rewrite[:500],
+                    "original": orig, "rewrite": rewrite,
                     "s_sem": round(ssem, 4), "changed": changed,
                 }, ensure_ascii=False) + "\n")
 
