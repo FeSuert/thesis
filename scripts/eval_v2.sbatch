@@ -22,15 +22,17 @@ export HF_HOME="${HF_HOME:-/lustre/urdeniw5/hf_cache}"
 export HF_HUB_OFFLINE=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-# Presidio needs a spacy model — download on the login node before submitting:
-#   uv run python -m spacy download en_core_web_lg
-# (compute nodes have no internet, so this must already be cached)
-uv run python -c "import spacy; spacy.load('en_core_web_lg')" || {
+# Compute nodes have NO internet. Prepare the env on the login node before submitting:
+#   uv sync                                          # installs declared deps (incl. openai)
+#   uv run python -m spacy download en_core_web_lg   # spaCy model (not tracked by uv)
+# We run with --no-sync so the compute node never contacts pypi or prunes the venv
+# (a plain `uv run` would try to re-sync, time out with no internet, and fail the job).
+uv run --no-sync python -c "import spacy; spacy.load('en_core_web_lg')" || {
   echo "ERROR: en_core_web_lg not found. Run 'uv run python -m spacy download en_core_web_lg' on the login node first."
   exit 1
 }
 
-uv run python -m thesis.evaluation.run_eval_v2 \
+uv run --no-sync python -m thesis.evaluation.run_eval_v2 \
   --defenders \
     undefended=none \
     sft=outputs/sft-qwen3_5-4b/merged \
