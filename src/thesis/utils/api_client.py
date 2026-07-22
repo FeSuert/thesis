@@ -1,9 +1,10 @@
 """Thin OpenAI-compatible chat client used by the judge and API-attacker scripts.
 
-Works with any OpenAI-compatible endpoint (OpenAI, Moonshot/Kimi, Bedrock proxies)
-by switching --base-url and --model. The API key is never stored in the repo:
-it is read from --api-key, the OPENAI_API_KEY / MOONSHOT_API_KEY env vars, or an
-interactive prompt, in that order.
+The RQ3 utility judge uses the **OpenAI API directly** (base_url https://api.openai.com/v1,
+model gpt-5, key from the OPENAI_API_KEY token). The API attacker uses Moonshot/Kimi
+(key from MOONSHOT_API_KEY). Any OpenAI-compatible endpoint works by switching --base-url
+and --model. The API key is never stored in the repo: it is read from --api-key, the
+OPENAI_API_KEY / MOONSHOT_API_KEY env vars, or an interactive prompt, in that order.
 """
 
 from __future__ import annotations
