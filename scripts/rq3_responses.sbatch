@@ -25,6 +25,10 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 TURNS="${1:-outputs/eval/v2/turns_sftdpo_v2.jsonl}"
 OUT="${2:-outputs/eval/rq3/responses_sftdpo_v2.jsonl}"
 
+# --changed-only: skip turns the defender left byte-identical (utility is trivially
+# preserved there). The filter keys on real text difference, so it keeps all edited
+# turns incl. surgical swaps (~531/3000 for sftdpo_v2), not just the coarse-flag 201.
 uv run --no-sync python -m thesis.evaluation.rq3_responses \
   --turns "$TURNS" \
-  --out "$OUT"
+  --out "$OUT" \
+  --changed-only

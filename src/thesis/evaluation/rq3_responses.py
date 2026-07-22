@@ -84,7 +84,10 @@ def main() -> None:
     turns = [json.loads(line) for line in turns_path.read_text(encoding="utf-8").splitlines()
              if line.strip()]
     if args.changed_only:
-        turns = [t for t in turns if t.get("changed")]
+        # Filter on ANY textual difference, not the coarse 0.95-similarity `changed`
+        # flag: surgical single-token edits (e.g. a location swap in a long turn) fall
+        # below that threshold yet still alter the prompt and can change the response.
+        turns = [t for t in turns if t["original"].strip() != t["rewrite"].strip()]
     if args.limit > 0:
         turns = turns[: args.limit]
     print(f"[rq3] {len(turns)} turns from {turns_path.name}; responder={args.responder}")
