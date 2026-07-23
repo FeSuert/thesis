@@ -33,23 +33,26 @@ from thesis.utils.api_client import ChatClient, resolve_api_key
 from thesis.utils.reproducibility import repo_root, set_seed
 
 JUDGE_SYSTEM = (
-    "You are an impartial evaluator of AI assistant responses. You are given a user's "
-    "request and two responses to it, labeled A and B. Judge how well EACH response "
-    "serves the user's request: helpfulness, relevance, and completeness. Judge only "
-    "quality with respect to the request — ignore style, length, and formatting "
-    "differences unless they affect usefulness.\n\n"
+    "You are an impartial evaluator of AI assistant answers. You are given a user's "
+    "request and two answers to it, labeled A and B. Rate how well EACH answer fulfills "
+    "the request ON ITS OWN — helpfulness, relevance, and completeness — on a 1-5 scale "
+    "(5 = fully fulfills the request, 3 = partially useful, 1 = useless or off-target). "
+    "Judge substance only: ignore differences in wording, style, length, and formatting. "
+    "Two answers can BOTH score 5 if they each fulfill the request well, even when phrased "
+    "differently.\n\n"
+    "Then give a verdict on their relative helpfulness: use 'tie' when both fulfill the "
+    "request about equally well; use 'A' or 'B' only when one is clearly more helpful.\n\n"
     "Respond with ONLY a JSON object in exactly this shape:\n"
     '{"score_a": <1-5>, "score_b": <1-5>, "verdict": "<A|B|tie>", '
-    '"reason": "<one short sentence>"}\n'
-    "Scores: 5 = fully answers the request, 3 = partially useful, 1 = useless or "
-    "off-target. verdict = the more helpful response, or tie."
+    '"reason": "<one short sentence>"}'
 )
 
 JUDGE_USER_TEMPLATE = (
     "User request:\n{request}\n\n"
-    "Response A:\n{resp_a}\n\n"
-    "Response B:\n{resp_b}\n\n"
-    "Which response serves the user's request better?"
+    "Answer A:\n{resp_a}\n\n"
+    "Answer B:\n{resp_b}\n\n"
+    "Rate each answer 1-5 for how well it fulfills the request, then say whether they are "
+    "equally helpful (tie) or one is clearly better."
 )
 
 
@@ -200,6 +203,14 @@ def main() -> None:
             "n_scored": len(scored),
             "mean_original": round(float(s_orig.mean()), 3) if len(s_orig) else None,
             "mean_rewrite": round(float(s_rw.mean()), 3) if len(s_rw) else None,
+            # Utility-preservation headline metrics (goal: are the answers equivalent?):
+            #  - mean_score_gap: mean(original - rewrite); near 0 = preserved.
+            #  - rewrite_ge_original_rate: fraction where the rewrite's answer is judged
+            #    AT LEAST as good as the original's ("just as good or better").
+            #  - tie_rate: fraction the judge called an outright tie.
+            "mean_score_gap": round(float((s_orig - s_rw).mean()), 3) if len(s_orig) else None,
+            "rewrite_ge_original_rate": round(float((s_rw >= s_orig).mean()), 3) if len(s_rw) else None,
+            "tie_rate": round(verdicts.count("tie") / len(verdicts), 3) if verdicts else None,
             "verdict_counts": {v: verdicts.count(v) for v in ("original", "rewrite", "tie")},
             "n_parse_failed": sum(1 for r in records
                                   if r.get("judge", {}).get("parse_failed")),
