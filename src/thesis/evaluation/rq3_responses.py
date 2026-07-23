@@ -34,7 +34,11 @@ def parse_args() -> argparse.Namespace:
                    help="Per-turn JSONL from run_eval_v2 (turns_<variant>.jsonl).")
     p.add_argument("--responder", default="Qwen/Qwen3.5-9B",
                    help="Local model that answers the prompts (stands in for the chatbot).")
-    p.add_argument("--max-new-tokens", type=int, default=512)
+    # 2048 (not 512): these "refine my text / give me options" prompts elicit long
+    # multi-part answers; a 512 cap truncated ~80% of them mid-answer, which the RQ3
+    # judge then penalised as "incomplete" — confounding the utility measurement.
+    # Answers that finish early emit EOS and cost nothing extra.
+    p.add_argument("--max-new-tokens", type=int, default=2048)
     p.add_argument("--limit", type=int, default=0, help="Cap turns (0 = all).")
     p.add_argument("--changed-only", action="store_true",
                    help="Only answer turns where the rewrite differs from the original. "
