@@ -32,22 +32,40 @@ class ChatClient:
         self.model = model
         self.max_retries = max_retries
         self.client = OpenAI(base_url=base_url, api_key=api_key, timeout=timeout)
+        # OpenAI GPT-5 / o-series reasoning models changed the chat API: they require
+        # `max_completion_tokens` (not `max_tokens`), only accept the default
+        # temperature, and spend hidden reasoning tokens against the token budget.
+        m = (model or "").lower()
+        self._openai_reasoning = m.startswith(("gpt-5", "o1", "o3", "o4"))
 
     def chat(self, messages: list[dict], temperature: float = 0.0,
              max_tokens: int = 512) -> str:
-        """Single chat completion with exponential-backoff retries."""
+        """Single chat completion with exponential-backoff retries.
+
+        Adapts parameters to the model family (GPT-5/o-series vs. standard chat).
+        Non-retryable client errors (bad params, auth) fail fast instead of retrying.
+        """
         last_err: Exception | None = None
         for attempt in range(self.max_retries):
             try:
-                resp = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                )
+                kwargs: dict = {"model": self.model, "messages": messages}
+                if self._openai_reasoning:
+                    # Reasoning tokens count against the budget → give real headroom
+                    # even though the JSON verdict itself is tiny; minimal effort keeps
+                    # cost/latency down. temperature is left at the (only) default.
+                    kwargs["max_completion_tokens"] = max(max_tokens, 2048)
+                    kwargs["reasoning_effort"] = "minimal"
+                else:
+                    kwargs["max_tokens"] = max_tokens
+                    kwargs["temperature"] = temperature
+                resp = self.client.chat.completions.create(**kwargs)
                 return (resp.choices[0].message.content or "").strip()
-            except Exception as e:  # noqa: BLE001 — retry any transient API error
+            except Exception as e:  # noqa: BLE001
                 last_err = e
+                status = getattr(e, "status_code", None)
+                # 4xx (except 408 timeout / 429 rate-limit) are permanent → fail fast.
+                if status is not None and 400 <= status < 500 and status not in (408, 429):
+                    raise RuntimeError(f"Non-retryable API error ({status}): {e}") from e
                 wait = 2 ** attempt
                 print(f"    API error (attempt {attempt + 1}/{self.max_retries}): {e} — retry in {wait}s")
                 time.sleep(wait)
