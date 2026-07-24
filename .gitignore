@@ -53,6 +53,9 @@ outputs/
 # Docs also don't commit for now
 /docs
 
+# Results log — keep local only (contains experiment numbers, do NOT publish)
+/experiments.md
+
 # Model weights and checkpoints — NEVER commit.
 checkpoints/
 weights/
