@@ -32,31 +32,35 @@ class ChatClient:
         self.model = model
         self.max_retries = max_retries
         self.client = OpenAI(base_url=base_url, api_key=api_key, timeout=timeout)
-        # OpenAI GPT-5 / o-series reasoning models changed the chat API: they require
-        # `max_completion_tokens` (not `max_tokens`), only accept the default
-        # temperature, and spend hidden reasoning tokens against the token budget.
         m = (model or "").lower()
+        # OpenAI GPT-5 / o-series reasoning: require max_completion_tokens (not max_tokens),
+        # only default temperature, and spend hidden reasoning tokens against the budget.
         self._openai_reasoning = m.startswith(("gpt-5", "o1", "o3", "o4"))
+        # Other providers' reasoning models (e.g. Moonshot Kimi K3) also reject a non-default
+        # temperature but keep the standard max_tokens field.
+        self._kimi_reasoning = "k3" in m
+        self._reasoning = self._openai_reasoning or self._kimi_reasoning
 
     def chat(self, messages: list[dict], temperature: float = 0.0,
              max_tokens: int = 512) -> str:
         """Single chat completion with exponential-backoff retries.
 
-        Adapts parameters to the model family (GPT-5/o-series vs. standard chat).
+        Adapts parameters to the model family (GPT-5/o-series, Kimi K3, or standard chat).
         Non-retryable client errors (bad params, auth) fail fast instead of retrying.
         """
         last_err: Exception | None = None
         for attempt in range(self.max_retries):
             try:
                 kwargs: dict = {"model": self.model, "messages": messages}
+                # Reasoning models spend hidden tokens against the cap → give headroom.
+                budget = max(max_tokens, 2048) if self._reasoning else max_tokens
                 if self._openai_reasoning:
-                    # Reasoning tokens count against the budget → give real headroom
-                    # even though the JSON verdict itself is tiny; minimal effort keeps
-                    # cost/latency down. temperature is left at the (only) default.
-                    kwargs["max_completion_tokens"] = max(max_tokens, 2048)
+                    kwargs["max_completion_tokens"] = budget
                     kwargs["reasoning_effort"] = "minimal"
                 else:
-                    kwargs["max_tokens"] = max_tokens
+                    kwargs["max_tokens"] = budget
+                # Only send a custom temperature for models that permit one.
+                if not self._reasoning:
                     kwargs["temperature"] = temperature
                 resp = self.client.chat.completions.create(**kwargs)
                 return (resp.choices[0].message.content or "").strip()
