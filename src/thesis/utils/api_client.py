@@ -52,13 +52,18 @@ class ChatClient:
         for attempt in range(self.max_retries):
             try:
                 kwargs: dict = {"model": self.model, "messages": messages}
-                # Reasoning models spend hidden tokens against the cap → give headroom.
-                budget = max(max_tokens, 2048) if self._reasoning else max_tokens
                 if self._openai_reasoning:
-                    kwargs["max_completion_tokens"] = budget
+                    # GPT-5/o*: reasoning_effort=minimal keeps hidden tokens small, so a
+                    # 2048 cap leaves room for the answer.
+                    kwargs["max_completion_tokens"] = max(max_tokens, 2048)
                     kwargs["reasoning_effort"] = "minimal"
+                elif self._kimi_reasoning:
+                    # Kimi K3 reasoning is NOT effort-capped and can consume the whole
+                    # budget before emitting the answer (→ empty content → parse failure).
+                    # Give generous headroom so the final JSON still fits.
+                    kwargs["max_tokens"] = max(max_tokens, 8192)
                 else:
-                    kwargs["max_tokens"] = budget
+                    kwargs["max_tokens"] = max_tokens
                 # Only send a custom temperature for models that permit one.
                 if not self._reasoning:
                     kwargs["temperature"] = temperature
