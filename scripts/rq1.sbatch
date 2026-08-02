@@ -20,7 +20,7 @@ export HF_HOME="${HF_HOME:-/lustre/urdeniw5/hf_cache}"
 export HF_HUB_OFFLINE=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-uv run python -m thesis.evaluation.rq1_longitudinal \
+uv run --no-sync python -m thesis.evaluation.rq1_longitudinal \
   --defenders undefended=none sft=outputs/sft-qwen3_5-4b/merged \
               sftdpo_v2=outputs/dpo-sftdpo-qwen3_5-4b-v2/merged \
   "$@"

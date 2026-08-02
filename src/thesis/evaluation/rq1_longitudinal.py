@@ -92,7 +92,10 @@ def main() -> None:
         name, _, path = spec.partition("=")
         print(f"\n[rq1] === variant '{name}' (defender={path or 'none'}) ===")
         defender = None
-        if path and path.lower() != "none":
+        if path == "__presidio__":
+            from thesis.evaluation.baselines.presidio_defender import PresidioDefender
+            defender = PresidioDefender()
+        elif path and path.lower() != "none":
             dpath = path if path.startswith("Qwen/") else str(
                 (Path(path) if Path(path).is_absolute() else root / path))
             defender = Defender(dpath)
