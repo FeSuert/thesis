@@ -1,6 +1,6 @@
 import os
 import json
-from src.thesis.evaluation.baselines.gemini_teacher import GeminiDefender
+from thesis.evaluation.baselines.gemini_teacher import GeminiDefender
 
 def run_test():
     # 5 test prompts containing various attributes (location, age, sex, profession, status, income)
