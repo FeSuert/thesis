@@ -112,6 +112,18 @@ def main() -> None:
         if vpath == "__presidio__":
             from thesis.evaluation.baselines.presidio_defender import PresidioDefender
             defender = PresidioDefender()
+        elif vpath.endswith(".jsonl"):
+            # Load precomputed rewrites from the file we generated
+            class PrecomputedDefender:
+                def __init__(self, path):
+                    import json
+                    self.rewrites = [json.loads(line)["rewrite"] for line in open(path, encoding="utf-8")]
+                    self.idx = 0
+                def rewrite(self, text):
+                    res = self.rewrites[self.idx]
+                    self.idx += 1
+                    return res
+            defender = PrecomputedDefender(vpath)
         elif vpath.lower() != "none":
             dpath = vpath if vpath.startswith("Qwen/") else str(
                 (Path(vpath) if Path(vpath).is_absolute() else root / vpath))
