@@ -50,12 +50,13 @@ class GeminiDefender:
             system_instruction=self.system_instruction,
             temperature=0.1,
             max_output_tokens=max_tokens,
+            thinking_config=types.ThinkingConfig(thinking_budget=0),
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
             safety_settings=self._safety(),
         )
 
     def _budget(self, text: str) -> int:
-        # A rewrite is ~the length of the input; give 2x input + headroom, clamped.
-        est_tokens = len(text) // 3                    # rough chars->tokens
+        est_tokens = len(text) // 3
         return max(1024, min(self.MAX_OUTPUT_TOKENS, est_tokens * 2 + 256))
 
     @staticmethod
