@@ -1,22 +1,17 @@
 {
   "manifest_version": 3,
   "name": "Privacy Prompt Rewriter (Defender) — dev",
-  "version": "0.2.0",
-  "description": "On-device rewrite of chat messages before they are sent (WebLLM, in-browser).",
-  "permissions": ["offscreen", "storage"],
-  "host_permissions": [
-    "https://huggingface.co/*",
-    "https://raw.githubusercontent.com/*"
-  ],
+  "version": "0.3.0",
+  "description": "On-device rewrite of chat messages via a local Defender server (127.0.0.1).",
+  "permissions": ["storage"],
+  "host_permissions": ["http://127.0.0.1:8765/*", "http://localhost:8765/*"],
   "background": { "service_worker": "background.js" },
   "content_scripts": [
     {
       "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*", "https://claude.ai/*"],
+      "exclude_matches": ["https://claude.ai/cowork/*"],
       "js": ["rewriter.js", "content.js"],
       "run_at": "document_idle"
     }
-  ],
-  "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
-  }
+  ]
 }

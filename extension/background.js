@@ -1,34 +1,23 @@
-// Service worker: owns the offscreen document and relays messages content-script <-> offscreen.
-let creating = null;
-
-async function ensureOffscreen() {
-  if (await chrome.offscreen.hasDocument()) return;
-  if (!creating) {
-    creating = chrome.offscreen.createDocument({
-      url: "offscreen.html",
-      reasons: ["WORKERS"],
-      justification: "Run the on-device privacy rewriter model with WebGPU.",
-    });
-  }
-  await creating;
-  creating = null;
-}
+// Service worker: relays the content script's rewrite request to the local Defender server.
+// The model runs on 127.0.0.1 (your PC), so nothing leaves the machine.
+const ENDPOINT = "http://127.0.0.1:8765/rewrite";
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === "defender-warmup-req") {
-    (async () => {
-      await ensureOffscreen();
-      await chrome.runtime.sendMessage({ type: "defender-warmup" });
-      sendResponse({ ok: true });
-    })().catch((e) => sendResponse({ ok: false, error: String(e) }));
+    // optional: touch the server so it's awake; ignore failures
+    fetch("http://127.0.0.1:8765/health").catch(() => {});
+    sendResponse({ ok: true });
     return true;
   }
   if (msg.type === "defender-rewrite-req") {
-    (async () => {
-      await ensureOffscreen();
-      const res = await chrome.runtime.sendMessage({ type: "defender-rewrite", text: msg.text });
-      sendResponse(res);
-    })().catch((e) => sendResponse({ ok: false, error: String(e) }));
+    fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: msg.text }),
+    })
+      .then((r) => r.json())
+      .then((d) => sendResponse({ ok: true, text: d.rewrite }))
+      .catch((e) => sendResponse({ ok: false, error: String(e) }));
     return true; // async
   }
 });
