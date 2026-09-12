@@ -91,18 +91,24 @@ def build_app(tok, model):
             {"role": "system", "content": DEFENDER_SYSTEM},
             {"role": "user", "content": text},
         ]
+        # This model's apply_chat_template returns a BatchEncoding (dict with input_ids +
+        # attention_mask), not a bare tensor — so ask for a dict and unpack it into generate().
+        common = dict(add_generation_prompt=True, return_tensors="pt", return_dict=True)
         try:
-            ids = tok.apply_chat_template(
-                messages, add_generation_prompt=True, return_tensors="pt", enable_thinking=False)
+            enc = tok.apply_chat_template(messages, enable_thinking=False, **common)
         except TypeError:
-            ids = tok.apply_chat_template(messages, add_generation_prompt=True, return_tensors="pt")
-        ids = ids.to(model.device)
+            enc = tok.apply_chat_template(messages, **common)
+        try:
+            enc = enc.to(model.device)
+        except AttributeError:
+            enc = {k: (v.to(model.device) if hasattr(v, "to") else v) for k, v in enc.items()}
+        input_len = enc["input_ids"].shape[1]
         with torch.no_grad():
             out = model.generate(
-                ids, max_new_tokens=256, do_sample=False,
+                **enc, max_new_tokens=256, do_sample=False,
                 pad_token_id=tok.pad_token_id or tok.eos_token_id,
             )
-        gen = tok.decode(out[0][ids.shape[1]:], skip_special_tokens=True).strip()
+        gen = tok.decode(out[0][input_len:], skip_special_tokens=True).strip()
         return jsonify(rewrite=gen)
 
     return app
