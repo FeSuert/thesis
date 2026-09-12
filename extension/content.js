@@ -1,4 +1,7 @@
 (() => {
+  // --- dev flags ---
+  const DEV_ALWAYS_REVIEW = true; // show the popup even when the rewrite == original (so you can see interception working)
+
   // Candidate selectors for the message box, tried in order. Update if a site changes its DOM.
   const COMPOSER_SELECTORS = [
     "#prompt-textarea",                          // ChatGPT (contenteditable)
@@ -42,6 +45,7 @@
       const b = document.querySelector(s);
       if (b && !b.disabled) { b.click(); return true; }
     }
+    console.warn("[Defender] no send button found; text is in the box, press Enter yourself.");
     return false;
   }
 
@@ -85,10 +89,12 @@
     e.preventDefault();
     e.stopImmediatePropagation();
     const original = getText(composer).trim();
+    console.log("[Defender] intercepted Enter. Original:", original);
     let rewrite = original;
     try { rewrite = await window.__defenderRewrite(original); }
     catch (err) { console.warn("[Defender] rewrite failed, using original:", err); }
-    if (rewrite.trim() === original) { doSend(); return; }   // nothing changed -> just send
+    console.log("[Defender] rewrite:", rewrite);
+    if (rewrite.trim() === original && !DEV_ALWAYS_REVIEW) { doSend(); return; }
     const res = await showReview(original, rewrite);
     if (res.action === "send") { setText(composer, res.text); setTimeout(doSend, 40); }
     // cancel -> leave the composer as-is for the user to edit

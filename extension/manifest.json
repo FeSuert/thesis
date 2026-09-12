@@ -1,13 +1,22 @@
 {
   "manifest_version": 3,
   "name": "Privacy Prompt Rewriter (Defender) — dev",
-  "version": "0.1.0",
-  "description": "On-device rewrite of chat messages to reduce attribute leakage (dev skeleton, mock rewriter).",
+  "version": "0.2.0",
+  "description": "On-device rewrite of chat messages before they are sent (WebLLM, in-browser).",
+  "permissions": ["offscreen", "storage"],
+  "host_permissions": [
+    "https://huggingface.co/*",
+    "https://raw.githubusercontent.com/*"
+  ],
+  "background": { "service_worker": "background.js" },
   "content_scripts": [
     {
       "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*", "https://claude.ai/*"],
-      "js": ["rewriter_mock.js", "content.js"],
+      "js": ["rewriter.js", "content.js"],
       "run_at": "document_idle"
     }
-  ]
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  }
 }
