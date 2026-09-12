@@ -1,6 +1,7 @@
 // Runs the on-device rewriter with WebLLM (WebGPU). Loaded only in the offscreen document.
-// You must vendor the WebLLM ESM bundle to ./lib/web-llm.js (see the setup note from Claude).
-import * as webllm from "./lib/web-llm.js";
+// This is the SOURCE file. Bundle it into offscreen.bundle.js with esbuild (see setup notes);
+// offscreen.html loads the bundle, not this file directly.
+import * as webllm from "@mlc-ai/web-llm";
 
 // STOCK model for the plumbing test. GTX 10xx (Pascal) has no shader-f16, so use a *q4f32_1* build.
 // Later we swap this for the compiled Defender (e.g. "Qwen3.5-4B-Defender-q4f32_1-MLC").
