@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Privacy Prompt Rewriter (Defender) — dev",
+  "version": "0.1.0",
+  "description": "On-device rewrite of chat messages to reduce attribute leakage (dev skeleton, mock rewriter).",
+  "content_scripts": [
+    {
+      "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*", "https://claude.ai/*"],
+      "js": ["rewriter_mock.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
